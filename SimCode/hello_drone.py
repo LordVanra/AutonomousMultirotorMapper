@@ -14,6 +14,9 @@ client = airsim.MultirotorClient()
 client.confirmConnection()
 client.enableApiControl(True)
 
+camera_client = airsim.MultirotorClient()
+camera_client.confirmConnection()
+
 state = client.getMultirotorState()
 s = pprint.pformat(state)
 print("state: %s" % s)
@@ -41,6 +44,74 @@ client.takeoffAsync().join()
 client.simSetTraceLine([0.5, 0.0, 0.5, 1.0], 2.0) 
 
 yaw_target = 0
+
+cams = ["3"] #Front CamID is 0
+cam_windows = ["Down"]
+
+def camera_thread(client, cams, cam_windows):
+    # Create windows
+    for window in cam_windows:
+        cv2.namedWindow(window, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(window, 640, 480)
+    
+    while True:
+        try:
+            # Request all camera images at once
+            responses = camera_client.simGetImages([
+                airsim.ImageRequest(cam, airsim.ImageType.Scene, False, False) 
+                for cam in cams
+            ])
+            
+            # Process and display each response
+            for i, response in enumerate(responses):
+                # Skip invalid responses
+                if response.width == 0 or response.height == 0:
+                    continue
+                
+                # Convert to numpy array
+                img1d = np.frombuffer(response.image_data_uint8, dtype=np.uint8)
+                
+                # Reshape to 2D image (height x width x channels)
+                img_rgb = img1d.reshape(response.height, response.width, 3).copy()
+                
+                # Convert RGB to BGR for OpenCV
+                img_hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
+
+                # Define your color range (e.g., blue is around 100-140 in HUE)
+                lower_blue = np.array([0, 0, 0])
+                upper_blue = np.array([180, 80, 225])
+
+                img_hsv = cv2.inRange(img_hsv, lower_blue, upper_blue)
+
+                # Find contours
+                contours, hierarchy = cv2.findContours(img_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                # Draw bounding box around largest contour 
+                for contour in contours:
+                    biggest = max(contours, key=cv2.contourArea)
+
+                    x, y, w, h = cv2.boundingRect(biggest)
+                    cv2.rectangle(img_rgb, (x, y), (x+w, y+h), (0, 255, 0), 1)
+
+                # Display output
+                cv2.imshow("Annotated", img_rgb)   # original + bounding box
+                cv2.imshow("Mask (Filtered Blue)", img_hsv)  # pixels that passed the filter
+            
+            # Check for quit key
+            if cv2.waitKey(1) & 0xFF == ord('z'):
+                camera_running = False
+                break
+                
+        except Exception as e:
+            print(f"Error in camera thread: {e}")
+            break
+    
+    cv2.destroyAllWindows()
+
+# # Start camera thread
+cam_thread = threading.Thread(target=camera_thread, args=(camera_client, cams, cam_windows))
+cam_thread.daemon = True
+cam_thread.start()
 
 while True:
     state = client.getMultirotorState()
@@ -98,6 +169,7 @@ while True:
     time.sleep(0.05)
 
 cv2.destroyAllWindows()
+cam_thread.join()
 client.armDisarm(False)
 client.reset()
 client.enableApiControl(False)
