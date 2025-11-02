@@ -50,9 +50,6 @@ cam_windows = ["Down"]
 
 def camera_thread(client, cams, cam_windows):
     # Create windows
-    for window in cam_windows:
-        cv2.namedWindow(window, cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(window, 640, 480)
     
     while True:
         try:
@@ -75,31 +72,54 @@ def camera_thread(client, cams, cam_windows):
                 img_rgb = img1d.reshape(response.height, response.width, 3).copy()
                 
                 # Convert RGB to BGR for OpenCV
-                img_hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
+                img_hsv = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2HSV)
 
-                # Define your color range (e.g., blue is around 100-140 in HUE)
-                lower_blue = np.array([0, 0, 0])
-                upper_blue = np.array([180, 80, 225])
+                mask = cv2.inRange(img_hsv, (48,0,0), (180,255,203))
+                mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((6,6), np.uint8))
+                mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((2,2), np.uint8))
 
-                img_hsv = cv2.inRange(img_hsv, lower_blue, upper_blue)
+                contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                contours = [c for c in contours if cv2.contourArea(c) > 5000]
 
-                # Find contours
-                contours, hierarchy = cv2.findContours(img_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                for c in contours:
+                    if cv2.contourArea(c) < 5000:
+                        continue
 
-                # Draw bounding box around largest contour 
-                for contour in contours:
-                    biggest = max(contours, key=cv2.contourArea)
+                    # Straight box (green)
+                    x, y, w, h = cv2.boundingRect(c)
+                    cv2.rectangle(img_rgb, (x, y), (x+w, y+h), (0,255,0), 1)
 
-                    x, y, w, h = cv2.boundingRect(biggest)
-                    cv2.rectangle(img_rgb, (x, y), (x+w, y+h), (0, 255, 0), 1)
+                    # Compute orientation using moments
+                    M = cv2.moments(c)
+                    if M["mu20"] + M["mu02"] == 0:
+                        continue
+                    angle = 0.5 * np.arctan2(2*M["mu11"], M["mu20"] - M["mu02"])
+                    angle_deg = np.degrees(angle)
 
-                # Display output
-                cv2.imshow("Annotated", img_rgb)   # original + bounding box
-                cv2.imshow("Mask (Filtered Blue)", img_hsv)  # pixels that passed the filter
+                    # Get centroid
+                    cx = int(M["m10"]/M["m00"])
+                    cy = int(M["m01"]/M["m00"])
+
+                    # Draw a rotated (blue) box using the angle
+                    rect = cv2.minAreaRect(c)
+                    center, (w, h), _ = rect
+                    rot_rect = ((cx, cy), (w, h), angle_deg)
+                    box = cv2.boxPoints(rot_rect)
+                    box = np.int32(box)
+                    cv2.drawContours(img_rgb, [box], 0, (255,0,0), 2)
+
+                    cv2.putText(img_rgb, f"{angle_deg:.1f}°", (cx, cy),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,255), 1)
+
+                cv2.imshow("Annotated", img_rgb)
+                cv2.imshow("Mask (Filtered Road)", mask)
+
             
             # Check for quit key
-            if cv2.waitKey(1) & 0xFF == ord('z'):
+            if keyboard.is_pressed('z') and keyboard.is_pressed('x'):
                 camera_running = False
+                break
+            if cv2.waitKey(1) & 0xFF == 27:  # ESC to exit normally
                 break
                 
         except Exception as e:
@@ -153,13 +173,13 @@ while True:
 
     # Send velocity command
     client.moveByVelocityZAsync(
-        4*vx, 4*vy, z, 0.1,
+        3*vx, 3*vy, z, 0.1,
         drivetrain=airsim.DrivetrainType.MaxDegreeOfFreedom,
         yaw_mode=airsim.YawMode(False, yaw_target)
     )
 
     # Quit
-    if keyboard.is_pressed('z'):
+    if keyboard.is_pressed('z') and keyboard.is_pressed('x'):
         print("Landing...")
         client.landAsync().join()
         client.armDisarm(False)
