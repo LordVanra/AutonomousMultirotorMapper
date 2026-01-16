@@ -66,6 +66,31 @@ def visualize_segmentation(result, output_path='result.jpg'):
                 center_x = int(np.mean(white_pixels))
                 centerline_points.append((center_x, row_idx))
         
+        # Kalman filter
+        if len(centerline_points) > 1:
+            smoothed_points = []
+            
+            x_estimate = centerline_points[0][0]  # Initial position
+            p_estimate = 1.0  # Initial estimation error
+            q = 0.001  # Process noise 
+            r = 5.0  # Measurement noise 
+            
+            for center_x, row_idx in centerline_points:
+                # Prediction step (assume constant position)
+                x_predict = x_estimate
+                p_predict = p_estimate + q
+                
+                # Update step
+                kalman_gain = p_predict / (p_predict + r)
+                x_estimate = x_predict + kalman_gain * (center_x - x_predict)
+                p_estimate = (1 - kalman_gain) * p_predict
+                
+                smoothed_points.append((int(x_estimate), row_idx))
+            
+            # Draw the smoothed red centerline
+            for i in range(len(smoothed_points) - 1):
+                cv2.line(result_image, smoothed_points[i], smoothed_points[i + 1], (0, 0, 255), 2)
+        
         cv2.imwrite(output_path, result_image)
         print(f"Segmentation result saved as '{output_path}'")
 
