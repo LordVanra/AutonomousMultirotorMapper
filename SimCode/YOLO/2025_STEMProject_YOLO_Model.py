@@ -2,11 +2,10 @@ from ultralytics import YOLO
 import cv2
 import numpy as np
 
-def predict(model, image_path):
+def predict(image_path, model = YOLO('model_weights.pt')):
     configs = [
         {'conf': 0.3, 'imgsz': 640},
-        {'conf': 0.2, 'imgsz': 640},
-        {'conf': 0.1, 'imgsz': 640}
+        {'conf': 0.2, 'imgsz': 640}
     ]
     
     best_result = None
@@ -27,22 +26,21 @@ def predict(model, image_path):
             if best_result is None:
                 best_result = result
                 best_config = config
-            print(f"  ✓ Detection successful")
+            print(f"  Detection successful")
     
     if best_result is None:
-        print("\n✗ No detections with any configuration")
+        print("\n No detections with any configuration")
     else:
         print(f"\nBest result with config: {best_config}")
     
     return best_result
 
 def visualize_segmentation(result, output_path='result.jpg'):
-    """Visualize segmentation results with overlay and also output BW mask"""
     if result.masks is not None:
         original_img = result.orig_img.copy()
         masks = result.masks.data.cpu().numpy()
 
-        # combined binary mask 
+        # Binary mask 
         combined_mask = np.zeros((original_img.shape[0], original_img.shape[1]), dtype=np.uint8)
 
         overlay = np.zeros_like(original_img)
@@ -55,14 +53,13 @@ def visualize_segmentation(result, output_path='result.jpg'):
         alpha = 0.5
         result_image = cv2.addWeighted(original_img, 1, overlay, alpha, 0)
         
-        # Calculate center of each white line per row and draw red centerline
+        # Calculate centerlines
         centerline_points = []
         for row_idx in range(combined_mask.shape[0]):
             row = combined_mask[row_idx]
             white_pixels = np.where(row == 255)[0]
             
             if len(white_pixels) > 0:
-                # Find the center of the white line in this row
                 center_x = int(np.mean(white_pixels))
                 centerline_points.append((center_x, row_idx))
         
@@ -72,11 +69,11 @@ def visualize_segmentation(result, output_path='result.jpg'):
             
             x_estimate = centerline_points[0][0]  # Initial position
             p_estimate = 1.0  # Initial estimation error
-            q = 0.001  # Process noise 
-            r = 5.0  # Measurement noise 
+            q = 0.05  # Process noise 
+            r = 1.0  # Measurement noise 
             
             for center_x, row_idx in centerline_points:
-                # Prediction step (assume constant position)
+                # Prediction step 
                 x_predict = x_estimate
                 p_predict = p_estimate + q
                 
@@ -87,7 +84,6 @@ def visualize_segmentation(result, output_path='result.jpg'):
                 
                 smoothed_points.append((int(x_estimate), row_idx))
             
-            # Draw the smoothed red centerline
             for i in range(len(smoothed_points) - 1):
                 cv2.line(result_image, smoothed_points[i], smoothed_points[i + 1], (0, 0, 255), 2)
         
@@ -98,8 +94,8 @@ def visualize_segmentation(result, output_path='result.jpg'):
         cv2.imwrite(bw_path, combined_mask)
         print(f"Black/white road mask saved as '{bw_path}'")
 
+    # No Masks
     else:
-        # If no masks, fall back to default plot
         result_image = result.plot()
         result_image_bgr = cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR)
         cv2.imwrite(output_path, result_image_bgr)
@@ -116,17 +112,15 @@ def main():
     
     print(f"\nProcessing image: {IMAGE_PATH}")
     
-    result = predict(model, IMAGE_PATH)
+    result = predict(IMAGE_PATH)
     
     if result is not None:
-        # Visualize and save results
         visualize_segmentation(result, OUTPUT_PATH)
-        
-        # Print additional information
+
         if result.masks is not None:
             print(f"\nDetected {len(result.masks)} road segment(s)")
             
-            # Get confidence scores if available
+            # Get confidence scores
             if result.boxes is not None and len(result.boxes) > 0:
                 confidences = result.boxes.conf.cpu().numpy()
                 print(f"Confidence scores: {confidences}")
