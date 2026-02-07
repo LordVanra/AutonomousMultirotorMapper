@@ -2,3 +2,6 @@
 /venv
 *.jpg
 *.png
+
+mailmap.txt
+push.bat
