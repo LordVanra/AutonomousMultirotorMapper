@@ -22,26 +22,8 @@ spec.loader.exec_module(yolo_model)
 
 
 def main():
-    # --- Configuration ---
-    # TODO: Replace with your actual video path if different
-    VIDEO_PATH = 'input_video.avi' 
-    OUTPUT_PATH = 'output_video.mp4' # Changed to .mp4 for better compatibility
-    
-    # Check for video file
-    if not os.path.exists(VIDEO_PATH):
-        print(f"Video file '{VIDEO_PATH}' not found.")
-        # Try to find any AVI file in current directory
-        # Exclude output files to avoid reprocessing them
-        avi_files = [f for f in os.listdir('.') if f.endswith('.avi') and 'output_video' not in f]
-        if avi_files:
-            print(f"Found avi files: {avi_files}. Using '{avi_files[0]}'...")
-            VIDEO_PATH = avi_files[0]
-        else:
-             print("No AVI video files found in the current directory.")
-             print("Please place an 'input_video.avi' file here or update the script.")
-             return
-
-    print(f"Processing video: {VIDEO_PATH}")
+    VIDEO_PATH = 'output.avi' 
+    OUTPUT_PATH = 'output_video.mp4' 
     
     cap = cv2.VideoCapture(VIDEO_PATH)
     if not cap.isOpened():
@@ -54,16 +36,10 @@ def main():
     fps = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
-    # Define the codec and create VideoWriter
-    # 'mp4v' is widely supported on Windows
     fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
     out = cv2.VideoWriter(OUTPUT_PATH, fourcc, fps, (width, height))
     
     frame_count = 0
-    
-    print(f"Video Properties: {width}x{height} @ {fps}fps, Total Frames: {total_frames}")
-
-    # Remove local visualize_frame function as we will use the one from yolo_model
     try:
         while cap.isOpened():
             ret, frame = cap.read()
@@ -80,11 +56,9 @@ def main():
             frame_to_write = frame
             
             if result is not None:
-                # Use the shared visualization function, pass None for output_path to avoid saving to disk
                 annotated_frame = yolo_model.visualize_segmentation(result, output_path=None)
                 frame_to_write = annotated_frame
                 
-                # Optional: Show preview (comment out if running headless or fast)
                 cv2.imshow('YOLO Video Analysis', annotated_frame)
             else:
                 cv2.imshow('YOLO Video Analysis', frame)

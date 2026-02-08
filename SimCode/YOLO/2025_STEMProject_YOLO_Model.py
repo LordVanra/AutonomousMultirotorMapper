@@ -90,17 +90,22 @@ def visualize_segmentation(result, output_path='result.jpg'):
             for i in range(len(smoothed_points) - 1):
                 cv2.line(result_image, smoothed_points[i], smoothed_points[i + 1], (0, 0, 255), 2)
         
-            cv2.imwrite(output_path, result_image)
-            print(f"Segmentation result saved as '{output_path}'")
-            
-            bw_path = "output_mask.jpg"
-            cv2.imwrite(bw_path, combined_mask)
-            print(f"Black/white road mask saved as '{bw_path}'")
+            if output_path:
+                cv2.imwrite(output_path, result_image)
+                print(f"Segmentation result saved as '{output_path}'")
+                
+                bw_path = "output_mask.jpg"
+                cv2.imwrite(bw_path, combined_mask)
+                print(f"Black/white road mask saved as '{bw_path}'")
+        
+        return result_image
 
     # No Masks
     else:
         result_image = result.plot()
         result_image_bgr = cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR)
+        
+        if output_path:
             cv2.imwrite(output_path, result_image_bgr)
             print(f"No segmentation masks found. Saved default plot as '{output_path}'")
         
