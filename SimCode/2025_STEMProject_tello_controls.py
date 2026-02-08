@@ -58,10 +58,10 @@ try:
     # Check battery
     battery = drone.get_battery()
     print(f"Battery level: {battery}%")
+
+    sendCommand(lambda: drone.move_up(50))
         
-    sendCommand(lambda: drone.rotate_clockwise(260))
-        
-    sendCommand(lambda: drone.flip("f"))
+    time.sleep(5)
 
     print("Landing...")
     drone.land()
