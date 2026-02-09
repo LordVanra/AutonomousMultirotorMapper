@@ -3,12 +3,13 @@ import cv2
 import numpy as np
 
 def predict(image_path, model = YOLO('model_weights.pt')):
+    # Use top 2 configs for sim and bottom 3 for real world
     configs = [
         {'conf': 0.3, 'imgsz': 640},
         {'conf': 0.2, 'imgsz': 640},
         {'conf': 0.1, 'imgsz': 640},
-        {'conf': 0.05, 'imgsz': 640},
-        {'conf': 0.01, 'imgsz': 640}
+        # {'conf': 0.05, 'imgsz': 640},
+        # {'conf': 0.01, 'imgsz': 640}
     ]
     
     best_result = None
@@ -29,6 +30,7 @@ def predict(image_path, model = YOLO('model_weights.pt')):
             if best_result is None:
                 best_result = result
                 best_config = config
+                break
             print(f"  Detection successful")
     
     if best_result is None:
@@ -55,6 +57,10 @@ def visualize_segmentation(result, output_path='result.jpg'):
 
         alpha = 0.5
         result_image = cv2.addWeighted(original_img, 1, overlay, alpha, 0)
+        
+        # Add Legend
+        cv2.line(result_image, (20, 40), (50, 40), (0, 0, 255), 2)
+        cv2.putText(result_image, "Ground Truth", (60, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         
         # Calculate centerlines
         centerline_points = []
@@ -98,7 +104,9 @@ def visualize_segmentation(result, output_path='result.jpg'):
                 cv2.imwrite(bw_path, combined_mask)
                 print(f"Black/white road mask saved as '{bw_path}'")
         
-        return result_image
+            return result_image, smoothed_points
+        else:
+            return result_image, []
 
     # No Masks
     else:
@@ -109,7 +117,7 @@ def visualize_segmentation(result, output_path='result.jpg'):
             cv2.imwrite(output_path, result_image_bgr)
             print(f"No segmentation masks found. Saved default plot as '{output_path}'")
         
-        return result_image_bgr
+        return result_image_bgr, []
 
 def main():
     # Configuration

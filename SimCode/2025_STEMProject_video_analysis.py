@@ -56,7 +56,7 @@ def main():
             frame_to_write = frame
             
             if result is not None:
-                annotated_frame = yolo_model.visualize_segmentation(result, output_path=None)
+                annotated_frame, _ = yolo_model.visualize_segmentation(result, output_path=None)
                 frame_to_write = annotated_frame
                 
                 cv2.imshow('YOLO Video Analysis', annotated_frame)
