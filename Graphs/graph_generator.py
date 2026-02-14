@@ -10,7 +10,7 @@ methods = [
 
 # Data
 accuracy = [95, 35, 100]      # %
-direction = [100, 18, 10]     # %
+direction = [18, 18, 93]     # %
 latency_ms = [7, 142, 100]    # ms
 
 # X positions

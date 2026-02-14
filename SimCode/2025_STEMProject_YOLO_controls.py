@@ -176,6 +176,20 @@ while True:
             break
 
         time.sleep(0.05)
+
+        plt.figure(figsize=(10, 10))
+        plt.plot(path_x, path_y, label='Drone Path', color='blue', linewidth=2)
+        plt.scatter(path_x[0], path_y[0], color='green', label='Start', zorder=5)
+        plt.scatter(path_x[-1], path_y[-1], color='red', label='End', zorder=5)
+        plt.plot([], [], color='red', label='Ground Truth')  # Dummy entry for legend
+        plt.title('Drone Movement Path')
+        plt.xlabel('X Coordinate')
+        plt.ylabel('Y Coordinate')
+        plt.legend()
+        plt.grid(True)
+        plt.axis('equal')
+        plt.savefig('movement_path_yolo.png')
+        print("Movement path saved to movement_path_yolo.png")
     except KeyboardInterrupt:
         print("Landing...")
         client.landAsync().join()
@@ -183,18 +197,7 @@ while True:
         client.enableApiControl(False)
         break
 
-plt.figure(figsize=(10, 10))
-plt.plot(path_x, path_y, label='Drone Path', color='blue', linewidth=2)
-plt.scatter(path_x[0], path_y[0], color='green', label='Start', zorder=5)
-plt.scatter(path_x[-1], path_y[-1], color='red', label='End', zorder=5)
-plt.title('Drone Movement Path')
-plt.xlabel('X Coordinate')
-plt.ylabel('Y Coordinate')
-plt.legend()
-plt.grid(True)
-plt.axis('equal')
-plt.savefig('movement_path_yolo.png')
-print("Movement path saved to movement_path_yolo.png")
+
 
 cv2.destroyAllWindows()
 cam_thread.join()
